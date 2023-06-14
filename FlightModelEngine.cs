@@ -12,12 +12,26 @@ namespace OSCFly
     {
         const float LATERAL_ACCELERATION_RATE = 0.2f;
         const float LONGITUDINAL_ACCELERATION_RATE = 1.0f;
-        const float ROTATIONAL_ACCELERATION_RATE = 0.2f;
+        const float ROTATIONAL_ACCELERATION_RATE = 0.5f;
         const float VERTICAL_ACCELERATION_RATE = 1.0f;
         const float DRAG = 1.0f;
-        public bool active;
+        bool _active;
+        public bool active
+        {
+            get
+            {
+                return _active;
+            }
+            set
+            {
+                if (!value)
+                {
+                    velocity = new Vector4();
+                }
+                _active = value;
+            }
+        }
         public Vector4 velocity;
-        public float rotationDirection;
         public Vector4 input;
         readonly bool _verbose;
         long lastTick;

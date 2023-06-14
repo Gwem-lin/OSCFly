@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq.Expressions;
 using System.Numerics;
 using System.Text;
 using System.Threading;
@@ -10,10 +11,9 @@ namespace OSCFly
     {
         readonly OscMessage jumpOnMessage = new OscMessage("/input/Jump", 1);
         readonly OscMessage jumpOffMessage = new OscMessage("/input/Jump", 0);
-        readonly OscMessage boosterOnMessage = new OscMessage("/avatar/parameters/Booster/Boost", true);
-        readonly OscMessage boosterOffMessage = new OscMessage("/avatar/parameters/Booster/Boost", false);
         Thread _jumpThread;
         Thread _boosterThread;
+        Thread _turnThread;
         readonly UDPSender _sender;
         readonly UDPListener _listener;
         readonly InputMapper _inputMapper;
@@ -33,6 +33,8 @@ namespace OSCFly
             _jumpThread.Start();
             _boosterThread = new Thread(SendBooster);
             _boosterThread.Start();
+            _turnThread = new Thread(SendTurn);
+            _turnThread.Start();
             _flightModelEngine.Initialize();
         }
         public void End()
@@ -40,8 +42,28 @@ namespace OSCFly
             _flightModelEngine.End();
             _jumpThread.Abort();
             _boosterThread.Abort();
+            _sender.Send(new OscMessage("/input/LookHorizontal", 0));
+            _sender.Send(jumpOffMessage);
+            _sender.Send(new OscMessage("/avatar/parameters/Booster/X", 0));
+            _sender.Send(new OscMessage("/avatar/parameters/Booster/Y", 0));
+            _sender.Send(new OscMessage("/avatar/parameters/Booster/Z", 0));
             _listener.Close();
             _sender.Close();
+        }
+        void SendTurn()
+        {
+            while (true)
+            {
+                if (_flightModelEngine.active)
+                {
+                    _sender.Send(new OscMessage("/input/LookHorizontal", _flightModelEngine.velocity.W));
+                    Thread.Sleep(1);
+                }
+                else
+                {
+                    Thread.Sleep(1000);
+                }
+            }
         }
         void SendBooster()
         {
@@ -49,7 +71,6 @@ namespace OSCFly
             {
                 if (_flightModelEngine.active)
                 {
-                    _sender.Send(boosterOnMessage);
                     _sender.Send(new OscMessage("/avatar/parameters/Booster/X", _flightModelEngine.velocity.X));
                     _sender.Send(new OscMessage("/avatar/parameters/Booster/Y", _flightModelEngine.velocity.Y));
                     _sender.Send(new OscMessage("/avatar/parameters/Booster/Z", _flightModelEngine.velocity.Z));
@@ -57,7 +78,6 @@ namespace OSCFly
                 }
                 else
                 {
-                    _sender.Send(boosterOffMessage);
                     Thread.Sleep(1000);
                 }
             }
@@ -79,6 +99,7 @@ namespace OSCFly
                 }
             }
         }
+        
         void HandlePacket(byte[] bytes)
         {
             var boolResponse = checkPacketIsBool(bytes);
